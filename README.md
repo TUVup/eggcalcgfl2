@@ -10,6 +10,10 @@
 
 금액 입력칸에 패키지의 <b>할인 전 가격</b>으로 패키지 금액을 넣어주세요.
 
+![image](https://github.com/user-attachments/assets/90706eee-8307-45e1-aa9f-13f88fae5506)
+
+에그머니 잔액이 있을 경우 잔액 추가 버튼으로 잔액을 넣어 주세요.
+
 ![image](https://github.com/user-attachments/assets/1cf343c9-90ca-431d-8f5a-7ca1a4b37af2)
 
 계산하기를 누르면 상품권 권수와 남는 잔액을 보여줍니다.
