@@ -1,5 +1,5 @@
 # 에그머니 패키지 가격 계산기
-![image](https://github.com/user-attachments/assets/02acc07c-a4e8-4fb5-a0c3-a7d690b446b7)
+![image](https://github.com/user-attachments/assets/10b8806f-edab-4027-89ef-390b3cc2b000)
 
 에그머니 패키지 가격 계산기는 패키지 가격에 맞는 에그머니 상품권 구매 권수를 최소 잔액을 남기도록 계산해 줍니다.
 
