@@ -3,6 +3,7 @@ from tkinter import messagebox
 from itertools import combinations
 import os
 import sys
+import re
 
 def resource_path(relative_path):
     """ Get absolute path to resource, works for dev and for PyInstaller """
@@ -14,6 +15,7 @@ class VoucherCalculator:
         self.root = root
         self.root.title("에그머니 소망 패키지 계산기")
         self.package_list = []
+        self.balance_list = []
         
         # 입력 프레임
         input_frame = tk.Frame(root)
@@ -29,6 +31,9 @@ class VoucherCalculator:
         self.amount_entry.pack(side=tk.LEFT, padx=5)
         
         add_button = tk.Button(input_frame, text="패키지 금액 추가", command=self.add_amount)
+        add_button.pack(side=tk.LEFT, padx=5)
+
+        add_button = tk.Button(input_frame, text="잔액 추가", command=self.add_balance)
         add_button.pack(side=tk.LEFT, padx=5)
         
         # 리스트 표시 영역
@@ -90,19 +95,55 @@ class VoucherCalculator:
         except ValueError:
             messagebox.showerror("오류", "올바른 금액을 입력하세요.")
 
+    def add_balance(self):
+        try:
+            balance = int(self.amount_entry.get())
+            if balance <= 0:
+                messagebox.showerror("오류", "0보다 큰 금액을 입력하세요.")
+                return
+            if balance > 50000:
+                messagebox.showerror("오류", "50,000원 이하의 금액을 입력하세요.")
+                return
+
+            self.balance_list.append(balance)
+            self.amount_listbox.insert(tk.END, f"추가된 PIN잔액: {balance:,}원")
+            self.amount_entry.delete(0, tk.END)
+        except ValueError:
+            messagebox.showerror("오류", "올바른 금액을 입력하세요.")
+
     def delete_selected(self):
         try:
+
             # 선택된 인덱스 가져오기
             selected_indices = self.amount_listbox.curselection()
+            value = self.amount_listbox.get(selected_indices)
+            print(f"selected_indices: {selected_indices}")
+            print(f"value: {value}")
             if not selected_indices:
                 messagebox.showwarning("경고", "삭제할 항목을 선택하세요.")
                 return
             
             # 큰 인덱스부터 삭제 (작은 인덱스부터 삭제하면 인덱스가 변경됨)
-            for index in sorted(selected_indices, reverse=True):
-                del self.package_list[index]
-                self.amount_listbox.delete(index)
-                
+            if '할인 전' in value:
+                print("패키지 삭제")
+                match1 = re.match(r'\d+', str(value))
+                match2 = re.match(r'\d+,\d+', str(value))
+                for list in self.package_list:
+                    if str(list) == match1.group() or str(list) == match2.group().replace(',', ''):
+                        self.package_list.remove(list)
+                        self.amount_listbox.delete(selected_indices)
+                        break
+            elif '추가된 PIN잔액:' in value:
+                print("추가된 PIN잔액 삭제")
+                match1 = re.search(r'\d+', str(value))
+                match2 = re.search(r'\d+,\d+', str(value))
+                for list in self.balance_list:
+                    print(f"list: {str(list)}, value: {value}, match: {match1}, {match2}")
+                    if str(list) == match1.group() or str(list) == match2.group().replace(',', ''):
+                        self.balance_list.remove(list)
+                        self.amount_listbox.delete(selected_indices)
+                        break
+
             # 결과 텍스트 초기화
             self.result_text.delete(1.0, tk.END)
             
@@ -111,16 +152,26 @@ class VoucherCalculator:
 
     def clear_list(self):
         self.package_list.clear()
+        self.balance_list.clear()
         self.amount_listbox.delete(0, tk.END)
         self.result_text.delete(1.0, tk.END)
-        self.simulate_text.delete(1.0, tk.END)
+        
+        # 시뮬레이션 창이 존재하고 열려있을 때만 텍스트 삭제
+        if self.simulation_window is not None:
+            try:
+                self.simulate_text.delete(1.0, tk.END)
+            except tk.TclError:
+                # 시뮬레이션 창이 이미 닫혀있는 경우
+                self.simulation_window = None
+                self.simulate_text = None
 
     def find_pins_for_amount(self, voucher_list, package_list):
-        self.simulate_text.insert(tk.END, f"사용될 핀: {voucher_list}\n\n")
         total_package = sum(package_list)
         self.result = False
         sorted_pins = sorted(voucher_list)
+        self.simulate_text.insert(tk.END, f"사용될 핀: {sorted_pins}\n\n")
         print(f"first insert sorted_pins: {sorted_pins}")
+
 
         for package in package_list:
             print(f"package: {package}, package_list: {package_list}, sorted_pins: {sorted_pins}")
@@ -148,7 +199,9 @@ class VoucherCalculator:
                 if remaining > 0:
                     sorted_pins.append(remaining)
                     sorted_pins.sort()  # 다시 정렬
+                    print(f"sorted_pins: {sorted_pins}")
                 
+
                 total_package -= package
                 print(f"smallest sorted_pins: {sorted_pins}")
                 self.simulate_text.insert(tk.END, f"---{package:,}원 결제---\n사용된 핀: {len(selected_pins)}개\n") # 핀 사용 금액: {total_selected:,}원\n
@@ -206,15 +259,19 @@ class VoucherCalculator:
         if not self.package_list:
             messagebox.showwarning("경고", "계산할 금액이 없습니다.")
             return
-        
-        # 시뮬레이션 창 생성
-        self.show_simulation()
             
         total_cost = sum(self.package_list)
         available_vouchers = [1000, 3000, 5000, 10000, 30000, 50000]
         best_combination = self._find_best_combination_package(total_cost, available_vouchers)
-        print(f"best_combination: {best_combination}")
-        
+        # if total_cost > sum(best_combination):
+        best_combination.extend(self.balance_list)
+
+        # 시뮬레이션 창 생성
+        self.show_simulation()
+        self.simulate_text.delete(1.0, tk.END)
+        self.simulate_text.insert(tk.END, f"패키지 총 구매 금액: {total_cost:,}원\n\n")
+        result = self.find_pins_for_amount(best_combination, sorted(self.package_list))
+
         # 결과 출력
         self.result_text.delete(1.0, tk.END)
         self.result_text.insert(tk.END, f"패키지 총 구매 금액: {total_cost:,}원\n\n")
@@ -222,11 +279,12 @@ class VoucherCalculator:
         
         # 상품권별 개수 계산
         voucher_counts = {}
-        for voucher in best_combination:
+        origin_best_combination = best_combination.copy()
+        for balance in self.balance_list:
+            origin_best_combination.remove(balance)
+        for voucher in origin_best_combination:
             voucher_counts[voucher] = voucher_counts.get(voucher, 0) + 1
 
-        result = self.find_pins_for_amount(best_combination, sorted(self.package_list))
-        print(f"final result: {result}")
         if result:
             print("result: ", result)
         
@@ -236,6 +294,7 @@ class VoucherCalculator:
             
             # 총 사용 금액 계산
             total_used = sum(best_combination)
+            print(f"total_used: {total_used}, best_combination: {best_combination}")
             self.result_text.insert(tk.END, f"\n상품권 총 사용 금액: {total_used:,}원\n")
             self.result_text.insert(tk.END, f"잔액: {total_used - total_cost:,}원")
         else:
@@ -249,6 +308,7 @@ class VoucherCalculator:
             self.result_text.insert(tk.END, "!!주의!!\n최소 잔액을 남기는 조합을 찾았으나 5개 미만으로 사용할 수 없습니다.\n참고용으로만 사용해주세요.\n\n")
 
     def _find_best_combination_package(self, total_amount, available_vouchers):
+        total_amount -= sum(self.balance_list)
         # dp[i]는 금액 i를 만들기 위한 최소 잔액을 저장
         dp = [float('inf')] * (total_amount + 50001)  # 최대 권종(50000)만큼 여유 공간 추가
         dp[0] = 0
@@ -276,6 +336,8 @@ class VoucherCalculator:
             while remaining >= voucher:
                 result.append(voucher)
                 remaining -= voucher
+
+        print(f"최적 핀 알고리즘 결과: available_vouchers: {available_vouchers}, result: {result}")
         
         return result
 
@@ -314,6 +376,7 @@ class VoucherCalculator:
         total_cost = sum(self.package_list)
         available_vouchers = [1000, 3000, 5000, 10000, 30000, 50000]
         best_combination = self._find_best_combination_package(total_cost, available_vouchers)
+        best_combination.extend(self.balance_list)
         
         # 시뮬레이션 텍스트 초기화
         self.simulate_text.delete(1.0, tk.END)
