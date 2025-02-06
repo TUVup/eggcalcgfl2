@@ -3,7 +3,7 @@
 
 에그머니 패키지 가격 계산기는 패키지 가격에 맞는 에그머니 상품권 구매 권수를 최소 잔액을 남기도록 계산해 줍니다.
 
-[다운로드 바로가기](https://github.com/TUVup/eggcalcgfl2/releases/tag/v1.0.0)
+[다운로드 바로가기](https://github.com/TUVup/eggcalcgfl2/releases/latest)
 
 # 사용법
 ![image](https://github.com/user-attachments/assets/f8f14fb3-30f9-4767-8f9b-e92d47911c00)
